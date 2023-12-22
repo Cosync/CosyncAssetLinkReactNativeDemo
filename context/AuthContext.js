@@ -25,7 +25,7 @@
 //
 
 import React, {createContext, useState, useEffect} from "react";
-import { Realm } from '@realm/react';
+import Realm from 'realm' 
 import Schema from '../config/Schema';
 import Configure from '../config/Config';
 

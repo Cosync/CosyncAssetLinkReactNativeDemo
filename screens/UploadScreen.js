@@ -43,6 +43,7 @@ import Loader from '../components/Loader';
 import UploadFile from '../components/UploadFile';  
 import Video from 'react-native-video';   
 import Configure from '../config/Config';
+import Realm from 'realm' 
 
 const UploadScreen = props => { 
   let  upoadedSource, cosyncInitAsset;
@@ -273,33 +274,40 @@ const UploadScreen = props => {
         
         try { 
           let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize);
-          console.log("handleItemUploaded requestCreateAsset", result);
-
+         
+          console.log("handleItemUploaded requestCreateAsset", result); 
           let cosyncAsset = JSON.parse(result);
-          let asset = cosyncAsset.asset;
-          asset._id = new Realm.BSON.ObjectId();
 
-          console.log("handleItemUploaded cosyncAsset.asset", cosyncAsset.asset);
-
-
-          realm.write(() => { 
-            realm.create(Configure.Realm.cosyncAsset, cosyncAsset.asset);
-          });
+          // reset uploading list
+          setUploadList(prevItems => {
+            return [];
+          });   
 
           setUploading(false); 
+
+          if (cosyncAsset.statusCode == 200) { 
+            let asset = cosyncAsset.asset;
+            asset._id = new Realm.BSON.ObjectId(asset._id);
+            console.log("handleItemUploaded asset  ", asset); 
+
+
+            realm.write(() => { 
+              realm.create(Configure.Realm.cosyncAsset, asset);
+            });
+          }
+          else {
+            alert('Invalid Upload Data.'); 
+          }
+         
+
         } catch (error) {
 
           console.log("handleItemUploaded error", error);
-
+          alert('Invalid Upload Data.'); 
           setUploading(false); 
         }
       } 
-
-     
-
-      setUploadList(prevItems => {
-        return newList;
-      }); 
+ 
     };
 
     const onChanged = (text) =>{ 
