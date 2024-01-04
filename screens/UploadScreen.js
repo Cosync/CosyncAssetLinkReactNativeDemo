@@ -53,6 +53,7 @@ const UploadScreen = props => {
   const [uploading, setUploading] = useState(false);    
   const [uploadList, setUploadList] = useState([]); 
   let [expirationHours, setExpiredHour] = useState('24'); 
+  let [caption, setCaption] = useState(''); 
   const { realm, realmUser, setRealmUser, login } = useContext(AuthContext); 
 
   useEffect(() => { 
@@ -273,7 +274,7 @@ const UploadScreen = props => {
         console.log("handleItemUploaded item", item);
         
         try { 
-          let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize);
+          let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize, 0, "0", 0, 0, caption);
          
           console.log("handleItemUploaded requestCreateAsset", result); 
           let cosyncAsset = JSON.parse(result);
@@ -326,9 +327,25 @@ const UploadScreen = props => {
  
       return (
         <SafeAreaView style={{flex: 1}}>
-          <Loader loading={loading == true}/> 
+          
+          <Loader loading={loading == true}/>  
 
           <View style={styles.container}> 
+
+
+              <View style={styles.expiredHour} >
+                <Text>Asset Expired Hours:</Text>
+                <TextInput 
+                  style={styles.inputStyle} 
+                  keyboardType = 'numeric'
+                  blurOnSubmit={false}
+                  textContentType={'none'}
+                  autoComplete= {'off'}
+                  value = {expirationHours}
+                  onChangeText={expirationHours => onChanged(expirationHours)}
+                />
+              </View>
+
               <TouchableOpacity activeOpacity={0.5}
                   style={styles.imageButtonStyle}
                   onPress={chooseFile}>
@@ -360,18 +377,19 @@ const UploadScreen = props => {
 
               </TouchableOpacity>
 
+
               <View style={styles.expiredHour} >
-                <Text>Asset Expired Hours:</Text>
+                <Text>Asset Caption:</Text>
                 <TextInput 
-                  style={styles.inputStyle} 
-                  keyboardType = 'numeric'
+                  style={styles.inputStyle}  
                   blurOnSubmit={false}
                   textContentType={'none'}
                   autoComplete= {'off'}
-                  value = {expirationHours}
-                  onChangeText={expirationHours => onChanged(expirationHours)}
+                  value = {caption} 
+                  onChangeText={value => setCaption(value)}
                 />
               </View>
+
 
               <TouchableOpacity
                   activeOpacity={0.5}
@@ -472,7 +490,7 @@ const styles = StyleSheet.create({
     },
     inputStyle: { 
       height: 40,
-      width: 100,  
+      width: 150,  
       margin: 10, 
       color: '#4638ab',
       paddingLeft: 15,

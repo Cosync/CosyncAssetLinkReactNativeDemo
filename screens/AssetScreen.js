@@ -42,214 +42,195 @@ import { AuthContext } from '../context/AuthContext';
 const AssetScreen = props => {
   
   const [loading, setLoading] = useState(false);  
-  const [assetList, setAssetList] = useState([]); 
-
- 
+  const [flateListItem, setFlateListItem] = useState([]);
   const { realm, realmUser, setRealmUser, login } = useContext(AuthContext); 
 
   useEffect(() => { 
-     
+    
     let isMounted = true;
     if (isMounted) { 
-     
       checkRealm();
     }
 
+    setFlateListItem(prevItems => { 
+      return [];
+    }); 
     
-      setAssetList(prevItems => { 
-        return [];
-      }); 
+    const assets = realm.objects(Configure.Realm.cosyncAsset).filtered(`userId = '${realmUser.id}' && status='active'`).sorted("createdAt", false); 
+    assets.addListener(assetsEventListener);
 
-      console.log("loadAllAssets ... realm user id ", realmUser.id);
-      
-      const assets = realm.objects(Configure.Realm.cosyncAsset).filtered(`userId = '${realmUser.id}'`);  
-      let sortedResult = assets.sorted("createdAt", false);
-     
-      assets.addListener(assetsEventListener); 
-
-      console.log("loadAllAssets ... sortedResult ", sortedResult.length);
-
-      sortedResult.forEach(element => {
-        let item = element;
-        item.id = element._id.toString();  
-        
-        setAssetList(prevItems => { 
-          return [item, ...prevItems];
-        });  
-      }); 
-
-     
-
+    for (let index = 0; index < assets.length; index++) {
+      const item = convertCosyncAsset(assets[index]);   
+      setFlateListItem(prevItems => { 
+        return [item, ...prevItems];
+      });  
+    }
 
     return () => {
       assets.removeListener(assetsEventListener); 
       isMounted = false; 
     } 
-  }, [])
+  }, []) 
 
-
-
-  // useEffect(() => {
-  //   checkRealm();
-
-  //   props.navigation.addListener('didBlur', (e) =>{
-  //     setAssetList(prevItems => { 
-  //       return [];
-  //     }); 
-  //     if(global.sound) global.sound.stop();
-  //   })
-
-  //   const naviSub = props.navigation.addListener('willFocus', checkRealm); 
-  //   return () => { 
-  //     naviSub.remove();
-  //   };
-
-  // }, []);
- 
-
-
-
-
-    async function checkRealm(){ 
-          
-      setLoading(true);
-
-      try { 
-        if(!realmUser || !realmUser.id){ 
-
-          let userEmail = await AsyncStorage.getItem('user_email');
-          let userPassword = await AsyncStorage.getItem('user_password');  
-            
-          if(!userEmail || !userPassword) setRealmUser();
-          else if (!realmUser){
-            let user = await login(userEmail, userPassword);
-            AsyncStorage.setItem('user_id', user.id);  
-          } 
-        }   
-
-        //loadAllAssets(); 
+  async function checkRealm(){ 
         
-      } catch (error) {
-        console.error(error);
-      }
-      finally{
-        setLoading(false);
-      }
+    setLoading(true);
 
+    try { 
+      if(!realmUser || !realmUser.id){ 
+
+        let userEmail = await AsyncStorage.getItem('user_email');
+        let userPassword = await AsyncStorage.getItem('user_password');  
+          
+        if(!userEmail || !userPassword) setRealmUser();
+        else if (!realmUser){
+          let user = await login(userEmail, userPassword);
+          AsyncStorage.setItem('user_id', user.id);  
+        } 
+      }   
+
+      
+    } catch (error) {
+      console.error(error);
     }
+    finally{
+      setLoading(false);
+    }
+
+  }
 
     
- 
-    function loadAllAssets(){
-      try { 
-        setAssetList(prevItems => { 
-          return [];
-        }); 
-        console.log("loadAllAssets ... realm user id ", realmUser.id);
-        
-        const assets = realm.objects(Configure.Realm.cosyncAsset).filtered(`userId = '${realmUser.id}'`);  
-        let sortedResult = assets.sorted("createdAt", false);
-        assets.removeListener(assetsEventListener); 
-        assets.addListener(assetsEventListener); 
 
-        console.log("loadAllAssets ... sortedResult ", sortedResult.length);
-
-        sortedResult.forEach(element => {
-          let item = element;
-          item.id = element._id.toString();  
-          
-          setAssetList(prevItems => { 
+  function assetsEventListener(assets, changes) { 
+    
+    console.log("assetsEventListener ... insertions ", changes);
+    
+    try {  
+      // Update UI in response to inserted objects
+      changes.insertions.forEach((index) => {
+        let item = convertCosyncAsset(assets[index]);  
+        if(item.status == 'active'){  
+          setFlateListItem(prevItems => { 
             return [item, ...prevItems];
-          });  
-        }); 
-
-      } catch (error) {
-        console.log("loadAllAssets ... error ", error);
-      }
-
-
-    }
-
-    function assetsEventListener(assets, changes) { 
-
-
-      console.log("assetsEventListener ... assets ", assets.length);
-
-
-      try { 
-
-        // Update UI in response to inserted objects
-        changes.insertions.forEach((index) => {
-          let item = assets[index]; 
+          }); 
           
-          if(item.status == 'active'){ 
-            item.id = item._id.toString(); 
-            
-            setAssetList(prevItems => { 
-              return [item, ...prevItems];
-            }); 
-          }
-        }); 
- 
-
-
-      } catch (error) {
-        onsole.log("changes.modifications error", error);
-      }
-
-    }
-       
-      return (
-        <SafeAreaView style={styles.container}>
-          <Loader loading={loading} />  
-
-          {assetList.length ?
-
-          <FlatList 
-            numColumns = {1}
-            data={assetList}
-            refreshing = {loading}
-             
-            style={styles.containerFlatList}  
-            renderItem={({item}) => (
-              <ProgressiveAsset item = {item}/>
-            )}  
-          /> 
-          : 
-          <View style={styles.container}> 
-            <Text style={styles.titleText}>
-              No Asset
-            </Text>
-            
-          </View> 
         }
-           
-        </SafeAreaView>
-      );
-  };
-
-    export default AssetScreen;
-      
-    const styles = StyleSheet.create({
-        container: {
-          flex: 1,
-          padding: 10,
-          backgroundColor: '#fff',
-          alignItems: 'center',
-          
-        },
-        titleText: {
-          fontSize: 22,
-          fontWeight: 'bold',
-          textAlign: 'center',
-          paddingVertical: 20,
-        },
-        
-         
-        containerFlatList : {
-          flex: 1, 
-          flexDirection: 'column',
-        }
-        
-         
       });
+
+      // changes.newModifications.forEach((index) => {  
+      // }) 
+      
+
+      // changes.deletions.forEach((index) => {   
+      //   console.log(`Looks like asset index #${index} has left the realm.`); 
+      // }) 
+
+    } catch (error) {
+      console.log("assetsEventListener changes  error", error);
+    }
+
+  }
+
+  function convertCosyncAsset(cosyncAsset){
+    let asset = {
+      id:cosyncAsset._id.toString(),
+      _id:cosyncAsset._id,
+      userId: cosyncAsset.userId,
+      path:cosyncAsset.path,
+      expirationHours:cosyncAsset.expirationHours,
+      expiration:cosyncAsset.expiration,
+      contentType:cosyncAsset.contentType,
+      size:cosyncAsset.size,
+      duration:cosyncAsset.duration,
+      color:cosyncAsset.color,
+      xRes:cosyncAsset.xRes,
+      yRes:cosyncAsset.yRes,
+      caption:cosyncAsset.caption,
+      status:cosyncAsset.status,
+      url:cosyncAsset.url,
+      urlSmall:cosyncAsset.urlSmall,
+      urlMedium:cosyncAsset.urlMedium,
+      urlLarge:cosyncAsset.urlLarge,
+      urlVideoPreview:cosyncAsset.urlVideoPreview,
+      createdAt:cosyncAsset.createdAt,
+      updatedAt:cosyncAsset.updatedAt
+    };
+
+    return asset
+  }
+      
+
+  function handleDeleteAsset(asset){
+    console.log("handleDeleteAsset ", asset.id);
+    setFlateListItem(flateListItem.filter(item => item.id !== asset.id )) 
+    realm.write(() => { 
+      // let realm function do the asset clean up
+      realm.create(Configure.Realm.cosyncAsset, {_id: asset._id, status: 'deleted'}, 'modified');
+    });
+  }
+
+  function handleRefreshAsset(asset){
+    console.log("handleRefreshAsset ", asset);
+
+    setFlateListItem((prev) => {
+      const list = [...prev];
+      for (let index = 0; index < list.length; index++) { 
+        const item = list[index];
+        if (item.id === asset._id) {
+          list[index].url = asset.url;
+          list[index].urlSmall = asset.urlSmall;
+          list[index].urlMedium = asset.urlMedium;
+        } 
+      } 
+      return list
+    })
+
+     
+
+  }
+
+    return (
+      <SafeAreaView style={styles.container}>
+        <Loader loading={loading} />  
+
+        {flateListItem.length ?
+
+        <FlatList 
+          numColumns = {1}
+          data={flateListItem}
+          refreshing = {loading} 
+          renderItem={({item}) => (
+            <ProgressiveAsset item = {item} onDeleteAsset={handleDeleteAsset} onRefreshAsset={handleRefreshAsset}/>
+          )}  
+          horizontal={false}
+          
+        /> 
+        : 
+        <View style={styles.container}> 
+          <Text style={styles.titleText}>
+            No Asset
+          </Text>
+          
+        </View> 
+      }
+          
+      </SafeAreaView>
+    );
+};
+
+export default AssetScreen;
+    
+const styles = StyleSheet.create({
+    container: {
+      flex: 1, 
+      backgroundColor: '#fff',
+      alignItems: 'center', 
+    },
+    titleText: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      paddingVertical: 20,
+    }, 
+      
+});

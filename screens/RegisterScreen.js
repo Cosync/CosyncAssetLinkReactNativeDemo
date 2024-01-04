@@ -38,7 +38,7 @@ import {  StyleSheet,
 import { AuthContext } from '../context/AuthContext';
 import Loader from '../components/Loader';  
 
-const Register = props => {
+const RegisterScreen = props => {
   
   let [errortext, setErrortext] = useState('');
   let [infotext, setInfoText] = useState('');
@@ -210,7 +210,7 @@ const Register = props => {
 
   );
 };
-export default Register;
+export default RegisterScreen;
 
 const styles = StyleSheet.create({
   mainBody: {

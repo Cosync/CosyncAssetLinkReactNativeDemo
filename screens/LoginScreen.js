@@ -155,13 +155,7 @@ const LoginScreen = props => {
               activeOpacity={0.5}
               onPress={handleSubmitPress}>
               <Text style={styles.buttonTextStyle}>LOGIN</Text>
-            </TouchableOpacity>
-
-            { <Text
-              style={styles.registerTextStyle}
-              onPress={() => props.navigation.navigate('RegisterScreen')}>
-              Create New Account
-            </Text>}
+            </TouchableOpacity> 
 
           </KeyboardAvoidingView>
         </View>

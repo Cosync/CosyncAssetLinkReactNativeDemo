@@ -27,11 +27,10 @@
 
 import React, { useContext } from 'react'; 
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import RegisterScreen from '../screens/RegisterScreen';
-import LoginScreen from '../screens/LoginScreen';
+import { createNativeStackNavigator } from '@react-navigation/native-stack'; 
 import HomeScreen from '../screens/HomeScreen';  
 import { AuthContext } from '../context/AuthContext';
+import LoggedOutScreen from '../screens/LoggedOutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -55,8 +54,7 @@ export default function AppNav() {
 const AuthStack = () => {
     return (
       <Stack.Navigator>
-        <Stack.Screen name="LoginScreen" component={LoginScreen} />
-        <Stack.Screen name="RegisterScreen" component={RegisterScreen} />  
+        <Stack.Screen name="LoggedOutScreen" component={LoggedOutScreen} options={{headerShown:false}}/> 
       </Stack.Navigator>
     );
   };

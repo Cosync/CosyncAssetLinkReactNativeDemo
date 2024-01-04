@@ -24,43 +24,65 @@
 //
 
 //Import React and Hook we needed
-import React, {useContext, useState} from 'react';
+import React, {useContext, useState, useEffect} from 'react';
 
 //Import all required component
 import { StyleSheet, View, Text, Image, ActivityIndicator,TouchableOpacity } from 'react-native'; 
 import VideoPlayer from './VideoPlayer'; 
 import Sound from 'react-native-sound';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext } from '../context/AuthContext'; 
+import Configure from '../config/Config';
+
 
 const ProgressiveAsset = props => {
-    const {  realmUser } = useContext(AuthContext); 
-    const { item, ...attributes } = props; 
-    let [loading, setLoading] = useState(false);
+    const {  realmUser, realm } = useContext(AuthContext); 
+    const { item, onDeleteAsset, onRefreshAsset, ...attributes } = props; 
+    let [loading, setLoading] = useState(false); 
     let [error, setLoadingError] = useState(false); 
     let [asset, setAssetObject] = useState(item); 
 
     Sound.setCategory('Playback');
     
+
+    useEffect(() => { 
+        
+        // if(asset.contentType.indexOf("video") >= 0){
+        //     console.log("ProgressiveAsset url ",item.url)
+        // }
+    })
+
+    const deleteAsset = () => {
+        
+        setLoading(true); 
+        onDeleteAsset(asset) 
+    } 
    
 
     const refreshAsset = () => {
         
-        setLoading(true);
-        setLoadingError(false); 
+        setLoadingError(false);
+        setLoading(true); 
 
         let id = asset._id.toString();
-        
-        realmUser.functions.CosyncRefreshAsset(id).then(newAsset => { 
-
-            //if(!newAsset || !newAsset._id) setLoadingError(true);  
+        try { 
+            realmUser.functions.CosyncRefreshAsset(id).then(newAsset => {  
+                let result = JSON.parse(newAsset);
+                onRefreshAsset(result[0]) 
+                setLoading(false); 
+            }).error(err => {
+                setLoading(false);
+            })
+        } catch (error) {
+            console.log("refreshAsset ", error)
+          
             setLoading(false);
-            if(newAsset && newAsset.contentType) setAssetObject(newAsset);
-        });
+        }
+       
 
     }
 
-    const handleErrorLoadImage = (e) => { 
-         
+    const handleErrorAsset = (e) => { 
+        console.log('handleErrorLoadImage ', e);
         setLoading(false);
         setLoadingError(true); 
     }
@@ -102,67 +124,84 @@ const ProgressiveAsset = props => {
     }
 
     return ( 
-        <View style={styles.container}> 
-        
-            {asset.contentType.indexOf("image") >= 0 ? 
-       
-                <Image 
-                    onLoadStart={(e) => setLoading(true)}
-                    onLoadEnd={(e) => setLoading(false)} 
-                    onError={handleErrorLoadImage}
-                    source={{ uri: asset.urlMedium || 'undefined'}} 
-                    style={[styles.imageThumbStyle]}
-                />  
-            : null } 
-
-            {asset.contentType.indexOf("video") >= 0 ? 
-            <View style={styles.videoStyle}>   
-                <VideoPlayer 
-                    item = {asset}  
-                    onLoadStart={(e) => setLoading(true)}
-                    onLoadEnd={(e) => { setLoading(false)} }
-                    onLoadError={handleErrorLoadImage}
-                />  
-            </View > 
-            : null } 
-
-            {asset.contentType.indexOf("sound") >= 0 ? 
-                <View style={styles.soundStyle}> 
-                    <TouchableOpacity onPress={() => playSound(asset)}  style={styles.buttonStyle}>
-                        <Text style={styles.soundBtnTextStyle}>Play Sound</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity onPress={() => stopSound()}  style={styles.buttonStyle}>
-                        <Text style={styles.soundBtnTextStyle}>Stop Sound</Text>
-                    </TouchableOpacity>
-                </View> 
-            : null }   
+        <View style={styles.container}>  
+            <View style={styles.assetStyle}>
+               
+                { asset.contentType.indexOf("image") >= 0 && ImageAsset(asset) }  
+                { asset.contentType.indexOf("video") >= 0 &&  VideoAsset(asset) }  
+                { asset.contentType.indexOf("sound") >= 0 && SoundAsset(asset) }   
+                <Text style={styles.captionBoxStyle} > {asset.caption} </Text>  
+            </View> 
 
             {
-                error ?  <View style={styles.errorTextStyle}>  
+            error && <View style={styles.errorBoxStyle}>  
                 <Text
-                    style={styles.textStyle}
+                    style={styles.textErrorStyle}
                     onPress={refreshAsset}>
-                    Invalid URL
+                    Expired Asset, Tap here to refresh
                 </Text> 
-                </View> : null
-            }
+            </View>
+            } 
 
             {
-                loading ?
-            
-                <View style={styles.loading}>
-                    <ActivityIndicator size='large' 
-                    animating={loading}
-                    hidesWhenStopped = {true}
-                    />
+                loading && <View style={styles.loadingBackground}> 
+                    <ActivityIndicator animating={true} size='large' /> 
                 </View>
-                :  null
+               
+            } 
+            { !loading && <View style={styles.buttonRedStyle}>  
+                    <TouchableOpacity onPress={ deleteAsset } >
+                        <Text style={styles.soundBtnTextStyle}>Remove</Text>
+                    </TouchableOpacity> 
+                </View>
             }
       </View>
 
        
     );
+
+
+
+    function ImageAsset(asset) {
+        return (
+            <View style={styles.mediaStyle}>   
+                <Image 
+                    onLoadStart={(e) => setLoading(true)}
+                    onLoadEnd={(e) => setLoading(false)} 
+                    onError={ handleErrorAsset }
+                    source={{ uri: asset.urlMedium || 'undefined'}} 
+                    style={[styles.imageThumbStyle]}
+                />
+            </View > 
+        );
+    }
+
+    function VideoAsset(asset) {
+        return (
+            <View style={styles.mediaStyle}>   
+                <VideoPlayer 
+                    item = {asset}  
+                    onLoadStart={(e) => setLoading(true)}
+                    onLoadEnd={(e) => { setLoading(false)} }
+                    onLoadError={handleErrorAsset}
+                />
+            </View > 
+        );
+    }
+
+    function SoundAsset(asset) {
+        return (
+            <View style={styles.mediaStyle}> 
+                <TouchableOpacity onPress={() => playSound(asset)}  style={styles.buttonStyle}>
+                    <Text style={styles.soundBtnTextStyle}>Play Sound</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => stopSound()}  style={styles.buttonStyle}>
+                    <Text style={styles.soundBtnTextStyle}>Stop Sound</Text>
+                </TouchableOpacity>
+            </View> 
+        );
+    }
 
 };
 export default ProgressiveAsset;
@@ -170,74 +209,61 @@ export default ProgressiveAsset;
 
 const styles = StyleSheet.create({
     container: { 
-        backgroundColor: '#e1e4e8',
+        flex: 1,  
         alignItems: 'center', 
-        margin: 10,
-        width: 360,
-        height: 360,
-        justifyContent: 'center',
-    }, 
-    soundStyle : {  
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 360,
-        height: 360,
-        justifyContent: 'center',
-        
-    },
-    videoStyle : {  
-        marginTop  : 25,
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 360,
-        height: 360,
+        width: '100%',
+        height: 250,  
+        flexDirection: 'row', 
+        marginBottom: 20,
+    },  
+
+    assetStyle : {
+        width: 250,
+        height: 250,  
         alignItems: 'center', 
-    },
-    imageThumbStyle: {   
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 360,
-        height: 360,
-        alignItems: 'center', 
-    },
-    
-    activityIndicator: {
-        alignItems: 'center', 
-        height: 80,
-        marginTop: -130
-        
-    },
-     
-    loading: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center'
     },
 
-    errorTextStyle : { 
+    mediaStyle : {   
+        width: 250,
+        height: 250,  
+    }, 
+    imageThumbStyle: {  
+        width: 250,
+        height: 250, 
+    }, 
+    loadingBackground: {
+        left: 80,
         position: 'absolute',
-        left: 0,
-        right: 0,
-        top: 0,
-        bottom: 0,
-        alignItems: 'center',
-        justifyContent: 'center'
+        alignItems: 'center', 
+        backgroundColor: '#00000090', 
+        height: 100,
+        width: 100,
+        borderRadius: 10, 
+        justifyContent: 'space-around', 
+    }, 
+    errorBoxStyle : { 
+        backgroundColor: '#00000090',
+        position: 'absolute',
+        width: 250,
+        height: 250, 
+        justifyContent: 'space-around', 
+        color: '#FFFFFF',
+    },
+    captionBoxStyle : { 
+        position: 'absolute',
+        top:0,
+        backgroundColor: '#00000090',
+        color: '#FFF',
     },
     textStyle: {  
         color: '#4638ab', 
-        fontSize: 14,
+        fontSize: 18,
+        paddingLeft:10
+    }, 
+    textErrorStyle: {  
+        color: '#390a10',
+        fontSize: 18,
+        paddingLeft:10
     }, 
 
     buttonStyle: {
@@ -247,12 +273,24 @@ const styles = StyleSheet.create({
         borderColor: '#7DE24E',
         height: 40,
         alignItems: 'center',
-        borderRadius: 30,
+        borderRadius: 10,
         marginLeft: 35,
         marginRight: 35,
         marginTop: 20,
         
     },
+
+    buttonRedStyle: {
+        backgroundColor: 'red', 
+        color: '#FFFFFF', 
+        height: 40, 
+        borderRadius: 10, 
+        marginLeft: 15,
+        width:80,
+        paddingLeft:10
+       
+    },
+
     soundBtnTextStyle: {
         color: 'white',
         paddingVertical: 10,

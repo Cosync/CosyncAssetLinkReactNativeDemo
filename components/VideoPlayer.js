@@ -45,13 +45,14 @@ const VideoPlayer = props => {
     }
     
     const onVideoError = (err) => {
+        console.log('onVideoError error ', item.url);
         props.onLoadError(err);
     }
 
     return (
         <View style={styles.container}>
            
-            <Video 
+            <Video  
                 onLoad={onLoadEnd}
                 onLoadStart={onLoadStart}  
                 onError={onVideoError}    
@@ -83,8 +84,8 @@ const styles = StyleSheet.create({
     }, 
     videoStyle: {  
         marginTop: -50,
-        width: 380,
-        height: 380,
+        width: 250,
+        height: 250,
         alignItems: 'center', 
     },
     activityIndicator: {
