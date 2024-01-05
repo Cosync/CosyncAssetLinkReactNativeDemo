@@ -34,14 +34,12 @@ import Request from './Request';
 const UploadFile = props => {
 
     const { item, ...attributes } = props;
-    
+    const [uploaded, setUploaded] = useState(false);  
     const [progress, setProgress] = useState(0);  
+    const [totalFileZise, setTotalFileZise] = useState(item ? item.size : 0);  
 
-    const [totalFileZise, setTotalFileZise] = useState(item.zise);  
-
-    if(item.upload == true && item.uploaded == false && item.writeUrl){  
-
-        item.uploaded = true;
+    if(item && item.status === 'start' && item.uploading === false  && item.writeUrl){ 
+        item.uploading = true;
 
         Request(item.writeUrl, {
             method: 'PUT',
@@ -51,45 +49,54 @@ const UploadFile = props => {
             body: { uri: item.uri },
         }, (progressEvent) => { 
             const progress = progressEvent.loaded / progressEvent.total; 
-            console.log(` uploadImage  ${item.sizeType}..progress ...`, Math.ceil(progress * 100 )); 
-            let size = (parseInt(progressEvent.total) / 1024) / 1024;
-            size = Math.ceil(size);
-            setTotalFileZise(size);
+          
+            // let size = (parseInt(progressEvent.total) / 1024) / 1024;
+            // size = Math.ceil(size);
+            // setTotalFileZise(size);
             let num = Math.ceil(progress * 100);
+            //console.log(` uploadImage  ${item.sizeType}..progress ...`, num); 
             setProgress(num);
-           
+
+            if (num === 100) {
+                setUploaded(true);
+                props.itemUploadedPregress(item.id);
+            }
+
         }).then((res) => { 
-            
+            console.log(` uploadImage ..res ...`, res); 
             props.itemUploaded(item.id);
 
         }, (err) => console.log(err)) 
 
     }
-     
-  
+      
 
 
     return ( 
-        <View style={styles.container}> 
-           
-            <View style={styles.progressCircle}> 
-            
-                <ActivityIndicator size='large' 
-                    animating={progress > 0 && progress < 100}
-                    hidesWhenStopped = {true}
-                />
-            
-                <Text style={{ fontSize: 18 }}>{item.sizeType} </Text>
-                {totalFileZise > 0 ? <Text>{totalFileZise } MB </Text> : null}
-                <Text>{`${progress}%`}</Text>
-
+       
+            <View style={styles.container}> 
+            { item &&
+                <View style={styles.progressCircle}>  
                 
+                    <Text style={{ fontSize: 18 }}>{item.sizeType} </Text>
+                    <Text>{totalFileZise } MB </Text> 
+                    {uploaded ?  <Text style={styles.blueText}>Finished</Text> :  <Text>{progress}%</Text>}
+                   
+
+                    <View style={styles.spinner}>  
+                        <ActivityIndicator size='large' 
+                            animating={progress > 0 && progress < 100}
+                            hidesWhenStopped = {true}
+                        />
+                    </View>
+                </View>
+            }
             </View>
-
-        </View>
-
+             
+        
     
         );
+
 };
 export default UploadFile;
 
@@ -97,17 +104,24 @@ const styles = StyleSheet.create({
     container: {
         flex: 1, 
         alignItems: 'center', 
-        width: 100,
-        height: 100,
+        width: 60,
+        height: 60,
         margin: 10
     },
  
     
-    progressCircle: {
-       
-        position: 'absolute', 
+    progressCircle: { 
+        position: "absolute",
         justifyContent: 'center', 
-        alignItems: 'center',
-        
+        alignItems: 'center' 
+    },
+
+    spinner: {  
+        position: 'absolute',
+        top:0,
+        color:'blue'
+    },
+    blueText : {
+        color:'blue'
     }
 });

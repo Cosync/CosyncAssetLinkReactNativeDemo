@@ -58,20 +58,18 @@ const ProgressiveAsset = props => {
     } 
    
 
-    const refreshAsset = () => {
+    const refreshAsset = async () => {
         
         setLoadingError(false);
         setLoading(true); 
 
         let id = asset._id.toString();
         try { 
-            realmUser.functions.CosyncRefreshAsset(id).then(newAsset => {  
-                let result = JSON.parse(newAsset);
-                onRefreshAsset(result[0]) 
-                setLoading(false); 
-            }).error(err => {
-                setLoading(false);
-            })
+            let newAsset = await realmUser.functions.CosyncRefreshAsset(id)
+            let result = JSON.parse(newAsset);
+            onRefreshAsset(result[0]) 
+            setLoading(false); 
+          
         } catch (error) {
             console.log("refreshAsset ", error)
           
@@ -130,7 +128,8 @@ const ProgressiveAsset = props => {
                 { asset.contentType.indexOf("image") >= 0 && ImageAsset(asset) }  
                 { asset.contentType.indexOf("video") >= 0 &&  VideoAsset(asset) }  
                 { asset.contentType.indexOf("sound") >= 0 && SoundAsset(asset) }   
-                <Text style={styles.captionBoxStyle} > {asset.caption} </Text>  
+                { asset.caption != "" && asset.caption && <Text style={styles.captionBoxStyle} > {asset.caption} </Text>  }
+                
             </View> 
 
             {

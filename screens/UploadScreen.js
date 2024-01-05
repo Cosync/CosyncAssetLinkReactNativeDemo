@@ -46,11 +46,12 @@ import Configure from '../config/Config';
 import Realm from 'realm' 
 
 const UploadScreen = props => { 
-  let  upoadedSource, cosyncInitAsset;
+  
   let videoPlayer = useRef(null);  
-  const [assetSource, setAssetSource] = useState({type: 'image'}); 
+  const [assetSource, setAssetSource] = useState({asset:{type: 'image'}, uploadData:{}}); 
   const [loading, setLoading] = useState(false);  
-  const [uploading, setUploading] = useState(false);    
+  const [uploading, setUploading] = useState(false);   
+  const [uploadingSuccessed, setUploadingSuccessed] = useState(false);  
   const [uploadList, setUploadList] = useState([]); 
   let [expirationHours, setExpiredHour] = useState('24'); 
   let [caption, setCaption] = useState(''); 
@@ -61,8 +62,8 @@ const UploadScreen = props => {
     let isMounted = true;
     if (isMounted) {
 
-      setUploadList([]); 
-      setAssetSource({type: 'image'});
+     // setUploadList([]); 
+     // setAssetSource({asset:{type: 'image'}});
       checkRealm();
     }
 
@@ -75,6 +76,7 @@ const UploadScreen = props => {
 
   async function checkRealm(){ 
          
+    console.log("checkRealm check session....");
     setLoading(true);
 
     try { 
@@ -100,14 +102,25 @@ const UploadScreen = props => {
   }
 
 
-    const uploadRequest = async (source) => {    
+    const uploadRequest = async () => {    
 
       try { 
 
+        let source = assetSource.asset 
+        console.log("uploadRequest source = ", source);
+
+        if(!source.filePath){
+          alert('Please choose an image/video.'); 
+          return;
+        }
+        
+        setLoading(true);  
+       
+
         let request = await realmUser.functions.CosyncInitAsset(source.filePath, parseFloat(expirationHours), source.type);
 
-        setLoading(false);  
-        cosyncInitAsset = JSON.parse(request);
+        
+        let cosyncInitAsset = JSON.parse(request);
       
         console.log("uploadRequest cosyncInitAsset = ", cosyncInitAsset);
 
@@ -151,19 +164,20 @@ const UploadScreen = props => {
           let asset = response.assets[0];
           asset.type = asset.type ? asset.type : 'video/quicktime';  
          
-          setUploadList([]);   
-          setLoading(true);
+          //setUploadList([]);   
 
-          upoadedSource = asset;
-          let imageName = upoadedSource.uri.split('/').pop(); 
-          upoadedSource.filePath =  upoadedSource.type.indexOf("image") > -1 ? `images/${imageName}` : `videos/${imageName}`; 
+          let updatedSource = asset;
+          let imageName = updatedSource.uri.split('/').pop(); 
+          updatedSource.filePath =  updatedSource.type.indexOf("image") > -1 ? `images/${imageName}` : `videos/${imageName}`; 
            
-          setAssetSource(asset); 
-          uploadRequest(upoadedSource);
+          setAssetSource(prev => ({...prev, asset, updatedSource})); // update the values in state
+          //setAssetSource(asset); 
+          //setLoading(true);
+          //uploadRequest(updatedSource);
            
         }
         else {
-          setLoading(false);
+          //setLoading(false);
           alert('Invalid file')
         }
 
@@ -171,126 +185,152 @@ const UploadScreen = props => {
     };
 
  
-    const renderUploadView = (initUploadData) => { 
+    const renderUploadView = async (initUploadData) => { 
       
-      setUploadList([]);  // reset flat list item
+      //setUploadList([]); // reset flat list item
 
       let item = {}; 
       let uploadData = initUploadData.writeUrls;
-      console.log("renderUploadView upoadedSource ", upoadedSource); 
+      let updatedSource = assetSource.updatedSource
+      console.log("renderUploadView updatedSource ", updatedSource); 
       
-      item.uri = upoadedSource.uri;
+      item.uri = updatedSource.uri;
       item.id = 'origin';
-      item.sizeType = upoadedSource.type.indexOf('image') >= 0 ? 'origin' : 'video'; 
-      item.upload = false;
-      item.uploaded = false;
-      item.contentType = upoadedSource.type;
+      item.sizeType = updatedSource.type.indexOf('image') >= 0 ? 'origin' : 'video'; 
+      item.status = 'init'; 
+      item.uploading = false
+      item.contentType = updatedSource.type;
       item.writeUrl = uploadData.writeUrl;
-      item.path = upoadedSource.uri;
-      item.size = (parseInt(upoadedSource.fileSize) / 1024) / 1024;
+      item.path = updatedSource.uri;
+      item.size = (parseInt(updatedSource.fileSize) / 1024) / 1024;
       item.size = item.size.toFixed(2);
-      item.source = upoadedSource;
+      item.source = updatedSource;
       item.initUploadData = initUploadData;
+      
 
-      setUploadList(prevItems => {
-        return [item];
-      });
+      setUploadList(prevItems => { 
+        return [...prevItems, item];
+      }); 
+     
+    
 
-      if(upoadedSource.type.indexOf('image') > -1){ 
-        resizeImage(uploadData, item, 'small', 300, 300);
-        resizeImage(uploadData, item, 'medium',600, 600);
-        resizeImage(uploadData, item, 'large', 900, 900);
-      } 
+      if(updatedSource.type.indexOf('image') > -1){ 
+        await resizeImage(uploadData, item, 'small', 300, 300);
+        await resizeImage(uploadData, item, 'medium',600, 600);
+        await resizeImage(uploadData, item, 'large', 900, 900);
+      }  
+  
+
+      setLoading(false)
+      
+      
+      // const myNextList = [...uploadList];
+      // const updatedList = myNextList.map((item) => 
+      //   item.status === 'init' ? {...item, status: 'start'} : item
+      // );
+
+      // setUploadList(updatedList)
 
     }
  
+    const uploadAllItems = () => {
 
-    const startUpload = () => {
+      console.log("uploadAllItems uploadList  ", uploadList.length);  
 
-      console.log("startUpload uploadList ", uploadList); 
 
-      if(uploadList.length == 0) {
-        alert('Please choose an image!')
-        return;
-      }
+      setUploadList(uploadList.map(item => {
+        if ( item.status === 'init') { 
+          return {...item, status: 'start'} ;
+        } else {
+          // No changes
+          return item;
+        }
 
-      setUploading(true); 
+        
+      }));
 
-      let newList = uploadList.map(el => (
-        el.upload == false ? {...el, upload: true} : el
-      ));
+      // const myNextList = [...uploadList];
+      // const updatedList = myNextList.map((item) => 
+      //   item.status === 'init' ? {...item, status: 'start'} : item
+      // );
 
-      // tell flat list item to upload
-      setUploadList(prevItems => {
-        return newList;
-      });   
+      // setUploadList(updatedList)
+ 
     }
+ 
  
 
     const resizeImage = async (uploadData, source, sizeType, maxWidth, maxHeight) => {
       
-        ImageResizer.createResizedImage(source.uri, maxWidth, maxHeight, 'JPEG', 100)
-        .then(response => { 
+      let item = await ImageResizer.createResizedImage(source.uri, maxWidth, maxHeight, 'JPEG', 100) 
+    
+      item.id = sizeType;
+      item.sizeType = sizeType;
+      item.type = source.type;
+      item.status = 'init'; 
+      item.size = (parseInt(item.size) / 1024) / 1024; 
+      item.size = item.size.toFixed(2);
+      item.uploading = false
+      console.log(`resizeImage cut: ${sizeType} zise: ${ item.size}`);
 
-            let item = response;
-            item.id = `${maxWidth}-${maxHeight}`;
-            item.sizeType = sizeType;
-            item.type = source.type;
-            item.upload = false;
-            item.uploaded = false; 
-            item.size = (parseInt(item.size) / 1024) / 1024; 
-            item.size = item.size.toFixed(2);
+      item.writeUrl = sizeType == 'small' ?  uploadData.writeUrlSmall : 
+                      sizeType == 'medium' ?  uploadData.writeUrlMedium : uploadData.writeUrlLarge;  
+      setUploadList(prevItems => { 
+        return [...prevItems, item];
+      }); 
+      return true;
+         
+    }
 
-            item.writeUrl = sizeType == 'small' ?  uploadData.writeUrlSmall : 
-                            sizeType == 'medium' ?  uploadData.writeUrlMedium : uploadData.writeUrlLarge; 
+    const resetUpload = () => {
 
-            setUploadList(prevItems => {
-                return [...prevItems, item];
-            }); 
+      setAssetSource(prev => ({...prev, asset:{}, updatedSource:{}})); // update the values in state
 
-            
-        })
-        .catch(err => {
-            // Oops, something went wrong. Check that the filename is correct and
-            // inspect err to get more details.
-            console.error(err)
-        });
+    
+      setUploadList(uploadList => {
+        return [];
+      });   
+
+      setUploading(false); 
+      setUploadingSuccessed(false); 
+
+    }
+
+    const handleItemUploadedProgress = (id) => {
+      if(id === 'origin' || id === 'video'){
+        setUploadingSuccessed(true)
+      }
+
+      console.log("handleItemUploadedProgress id", id); 
+
     }
 
 
     const handleItemUploaded = async (id) => { 
+      console.log("handleItemUploaded id", id); 
+ 
 
-
-      let newList = uploadList.map(el => (
-        el.id === id ?  {...el, uploaded: true} : el
-      ));
-
-      if(id == 'origin' || id == 'video'){ 
+      if(id === 'origin' || id === 'video'){ 
         alert('Asset is uploaded.'); 
-       
-        console.log("handleItemUploaded uploadList", uploadList);
-
+        
         let item = uploadList.filter(item => item.id == 'origin' || item.id == 'video')[0]; 
-        console.log("handleItemUploaded item", item);
+
+        console.log("handleItemUploaded item", item.id);
         
         try { 
           let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize, 0, "0", 0, 0, caption);
          
-          console.log("handleItemUploaded requestCreateAsset", result); 
+          
           let cosyncAsset = JSON.parse(result);
+          console.log("handleItemUploaded CosyncCreateAsset cosyncAsset ", cosyncAsset.statusCode); 
 
-          // reset uploading list
-          setUploadList(prevItems => {
-            return [];
-          });   
-
-          setUploading(false); 
+          resetUpload();
 
           if (cosyncAsset.statusCode == 200) { 
             let asset = cosyncAsset.asset;
             asset._id = new Realm.BSON.ObjectId(asset._id);
-            console.log("handleItemUploaded asset  ", asset); 
 
+            console.log("handleItemUploaded creating CosyncAsset  ", asset);  
 
             realm.write(() => { 
               realm.create(Configure.Realm.cosyncAsset, asset);
@@ -305,7 +345,7 @@ const UploadScreen = props => {
 
           console.log("handleItemUploaded error", error);
           alert('Invalid Upload Data.'); 
-          setUploading(false); 
+          resetUpload();
         }
       } 
  
@@ -327,14 +367,42 @@ const UploadScreen = props => {
  
       return (
         <SafeAreaView style={{flex: 1}}>
-          
+
           <Loader loading={loading == true}/>  
 
-          <View style={styles.container}> 
+          <View style={styles.container}>  
 
+              <TouchableOpacity activeOpacity={0.5}
+                  style={styles.imageButtonStyle}
+                  onPress={chooseFile}>
+                  <View  style={styles.uploadBoxStyle}>  
+                    {  assetSource.asset.type && assetSource.asset.type.indexOf('image') > -1 ?   
+ 
+                      <Image
+                        source={assetSource.asset} 
+                        style={styles.uploadBoxStyle}
+                      /> 
+                      :
+                      <Video 
+                        controls = {true} 
+                        paused = {true}
+                        ref={p => { videoPlayer = p; }} 
+                        source={assetSource.asset} 
+                        volume={10}
+                        style={styles.uploadBoxStyle}
+                      />  
+                    }
 
-              <View style={styles.expiredHour} >
-                <Text>Asset Expired Hours:</Text>
+                  </View>
+
+                  <View style={styles.textClickStyle}>
+                      <Text style={styles.textUploadStyle}>Choose Image/Video</Text>  
+                  </View>
+
+              </TouchableOpacity>
+
+              <View style={styles.assetTextBox} >
+                <Text>Expired Hours:</Text>
                 <TextInput 
                   style={styles.inputStyle} 
                   keyboardType = 'numeric'
@@ -346,39 +414,7 @@ const UploadScreen = props => {
                 />
               </View>
 
-              <TouchableOpacity activeOpacity={0.5}
-                  style={styles.imageButtonStyle}
-                  onPress={chooseFile}>
-                  <View  style={styles.uploadBoxStyle}>  
-                    { assetSource.type.indexOf('image') > -1 ?   
- 
-                      <Image
-                        source={assetSource} 
-                        style={styles.uploadBoxStyle}
-                      /> 
-                      :
-                      <Video 
-                        controls = {true} 
-                        paused = {true}
-                        ref={p => { videoPlayer = p; }} 
-                        source={assetSource} 
-                        volume={10}
-                        style={styles.uploadBoxStyle}
-                      /> 
-                      
-                    }
-
-                  </View>
-
-                  <View style={styles.textClickStyle}>
-                      <Text style={styles.textUploadStyle}>Choose Image/Video</Text>  
-                        
-                  </View>
-
-              </TouchableOpacity>
-
-
-              <View style={styles.expiredHour} >
+              <View style={styles.assetTextBox} >
                 <Text>Asset Caption:</Text>
                 <TextInput 
                   style={styles.inputStyle}  
@@ -390,18 +426,18 @@ const UploadScreen = props => {
                 />
               </View>
 
-
+             
               <TouchableOpacity
                   activeOpacity={0.5}
                   style={styles.buttonStyle}
                   disabled = {uploading}
-                  onPress={startUpload}>
+                  onPress={uploadList.length ? uploadAllItems :uploadRequest}>
                  
                   <Text style={styles.textButtonStyle}>
-                  Upload
+                  {uploadList.length ? 'Upload' : 'Request Upload'}
                   </Text>
               </TouchableOpacity> 
-         
+              {uploadingSuccessed && <Text style={{ fontSize: 18 }}>Your Asset is being created...</Text>} 
 
           <FlatList 
                 numColumns = {2}
@@ -411,6 +447,7 @@ const UploadScreen = props => {
                   <UploadFile 
                     item = {item} 
                     itemUploaded={handleItemUploaded} 
+                    itemUploadedPregress = {handleItemUploadedProgress}
                   />
                 )} 
               /> 
@@ -435,8 +472,8 @@ const styles = StyleSheet.create({
       paddingVertical: 20,
     }, 
     uploadBoxStyle: {
-      width: 320,
-      height: 320 
+      width: 250,
+      height: 250 
     },
     textClickStyle :{
       position: 'absolute', 
@@ -478,10 +515,10 @@ const styles = StyleSheet.create({
       color: '#FFFFFF',
       borderColor: '#7DE24E',
       height: 40,
-      width:120,
+      width:180,
       alignItems: 'center',
-      borderRadius: 30,
-      
+      borderRadius: 15,
+      marginTop:20
     },
     textButtonStyle: {
       color: 'white',
@@ -491,18 +528,17 @@ const styles = StyleSheet.create({
     inputStyle: { 
       height: 40,
       width: 150,  
-      margin: 10, 
+      margin: 5, 
       color: '#4638ab',
       paddingLeft: 15,
       paddingRight: 15,
       borderWidth: 1,
-      borderRadius: 30,
+      borderRadius: 15,
       borderColor: '#4638ab',
     },
-    expiredHour : { 
+    assetTextBox : { 
       flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 10,
+      alignItems: 'center', 
       marginTop: 10
     }
   });
