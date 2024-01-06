@@ -184,6 +184,11 @@ const ProgressiveAsset = props => {
                     onLoadEnd={(e) => { setLoading(false)} }
                     onLoadError={handleErrorAsset}
                 />
+
+                <TouchableOpacity style={styles.videoButton}>
+                    <Text style={styles.soundBtnTextStyle}>Video</Text>
+                </TouchableOpacity>
+
             </View > 
         );
     }
@@ -295,6 +300,14 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         fontSize: 16,
     },
-     
+    videoButton :{
+        position:'absolute',
+        alignItems:"center",
+        color: 'white',
+        bottom:'10%',
+        fontSize: 16,
+        padding:5,
+        backgroundColor: '#00000090',
+    }
      
 })

@@ -16,6 +16,13 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 npm install 
 cd ios && pod install && cd..
 ```
+
+If the pod install is not working properly, try upgrading your version of node
+
+```
+nvm use 18 or recommended version
+```
+
 ### For Android
 
 ```bash

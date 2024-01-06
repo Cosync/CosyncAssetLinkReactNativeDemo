@@ -82,16 +82,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center', 
     }, 
-    videoStyle: {  
-        marginTop: -50,
+    videoStyle: { 
         width: 250,
         height: 250,
         alignItems: 'center', 
-    },
-    activityIndicator: {
-        alignItems: 'center', 
-        height: 80,
-        marginTop: -130
-        
     }
   });
