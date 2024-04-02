@@ -204,6 +204,7 @@ const UploadScreen = props => {
       item.path = updatedSource.uri;
       item.size = (parseInt(updatedSource.fileSize) / 1024) / 1024;
       item.size = item.size.toFixed(2);
+      item.storageSize = item.size;
       item.source = updatedSource;
       item.initUploadData = initUploadData;
       
@@ -317,8 +318,14 @@ const UploadScreen = props => {
 
         console.log("handleItemUploaded item", item.id);
         
-        try { 
-          let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize, 0, "0", 0, 0, caption);
+        try {  
+
+          const storageSize = uploadList.reduce( function (accumulator, asset){ 
+            return accumulator + asset.size 
+          } , 0 );
+
+
+          let result = await realmUser.functions.CosyncCreateAsset(item.source.filePath, item.initUploadData.contentId, item.source.type,  parseFloat(expirationHours), item.source.fileSize, storageSize, 0, "0", 0, 0, caption);
          
           
           let cosyncAsset = JSON.parse(result);
